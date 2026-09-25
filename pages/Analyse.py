@@ -5,14 +5,14 @@ from sklearn.cluster import KMeans, DBSCAN
 from sklearn.preprocessing import StandardScaler
 
 # Configuration globale de la page
-st.set_page_config(page_title="Framework Universel de Clustering", layout="wide")
+st.set_page_config(page_title="Analyse du comportement utilisateur", layout="wide")
 
-st.title(":material/analytics: Outil d'Analyse et de Segmentation de Données Universel")
-st.write("Ce système générique segmente n'importe quelle base de données via Machine Learning.")
+st.title(":material/analytics: Outils de regroupement par comportement")
+st.write("Segmentez les utilisateurs de votre plateforme selon leur comportement (interactions, achats, activité...) grâce au Machine Learning.")
 
 # 1. Zone d'importation dynamique
-st.sidebar.header(":material/folder_open: Importation de données")
-fichier_importe = st.sidebar.file_uploader("Déposez votre fichier de données (.CSV) :", type=["csv"])
+st.sidebar.header(":material/folder_open: Données utilisateurs")
+fichier_importe = st.sidebar.file_uploader("Déposez l'export de vos données utilisateurs (.CSV) :", type=["csv"])
 
 df = None
 
@@ -148,10 +148,10 @@ if df is not None:
         st.write("---")
         
         # 4. Section de téléchargement du fichier final
-        st.subheader(":material/database: Base de données enrichie et exportable")
+        st.subheader(":material/database: Utilisateurs segmentés")
         csv_exportable = df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="Exporter le jeu de données segmenté (.CSV)",
+            label="Exporter les utilisateurs segmentés (.CSV)",
             data=csv_exportable,
             file_name="data_segmentation_output.csv",
             mime="text/csv",
@@ -160,4 +160,5 @@ if df is not None:
         st.dataframe(df)
         
     else:
-        st.error("Le fichier injecté ne contient pas assez d'attributs numériques pour générer un partitionnement mathématique.")
+        st.error("Le fichier importé ne contient pas assez d'indicateurs numériques (ex : interactions, achats) pour segmenter les utilisateurs.")
+        
