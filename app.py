@@ -80,9 +80,9 @@ with col1:
     if st.button("Informations sur la plateforme", icon=":material/info:", use_container_width=True):
         st.info(
             "**À propos de cette application :**\n\n"
-            "Cette plateforme analyse le comportement grace au données "
-            "Afin de les regrouper en segments ou Cluster  "
-            "cohérents et d'identifier les différents profils .\n\n"
+            "Cette plateforme analyse le comportement des utilisateurs de votre plateforme "
+            "(interactions, fréquence d'usage, activité, etc.) afin de les regrouper en segments "
+            "cohérents et d'identifier les différents profils d'utilisateurs.\n\n"
             "**Spécifications techniques :** Python, Streamlit, (K-Means & DBSCAN)."
         )
 
