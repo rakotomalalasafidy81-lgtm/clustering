@@ -10,6 +10,29 @@ st.set_page_config(page_title="Analyse du comportement utilisateur", layout="wid
 st.title(":material/analytics: Outils de regroupement par comportement")
 st.write("Segmentez les utilisateurs de votre plateforme selon leur comportement (interactions, activité, engagement...) grâce au Machine Learning.")
 
+# --- Échelle de comportement utilisée pour nommer les groupes (du moins au plus actif) ---
+ECHELLE_COMPORTEMENT = ["Très peu actif", "Peu actif", "Modéré", "Actif", "Très actif", "Extrêmement actif"]
+
+def etiquettes_pour_n_groupes(n):
+    """Choisit n libellés de comportement répartis sur l'échelle, du moins au plus actif."""
+    if n <= 1:
+        return [ECHELLE_COMPORTEMENT[len(ECHELLE_COMPORTEMENT) // 2]]
+    if n <= len(ECHELLE_COMPORTEMENT):
+        return [ECHELLE_COMPORTEMENT[round(i * (len(ECHELLE_COMPORTEMENT) - 1) / (n - 1))] for i in range(n)]
+    # Cas rare (plus de groupes que d'échelons prévus, ex. DBSCAN) : on numérote au-delà de l'échelle
+    return ECHELLE_COMPORTEMENT + [f"Groupe {i+1}" for i in range(len(ECHELLE_COMPORTEMENT), n)]
+
+def construire_etiquettes_clusters(df, col_x, col_y):
+    """Classe les clusters (hors bruit) du moins au plus actif et leur attribue un libellé."""
+    groupes = sorted(g for g in df['Cluster_ID'].unique() if g != -1)
+    scores = {g: df.loc[df['Cluster_ID'] == g, [col_x, col_y]].mean().mean() for g in groupes}
+    ordre_par_score = sorted(groupes, key=scores.get)  # du moins au plus actif
+    libelles = etiquettes_pour_n_groupes(len(ordre_par_score))
+    etiquette_par_cluster = {g: libelles[rang] for rang, g in enumerate(ordre_par_score)}
+    if -1 in df['Cluster_ID'].unique():
+        etiquette_par_cluster[-1] = "Atypique (Bruit)"
+    return etiquette_par_cluster, ordre_par_score
+
 # 1. Zone d'importation dynamique
 st.sidebar.header(":material/folder_open: Données utilisateurs")
 fichier_importe = st.sidebar.file_uploader("Déposez l'export de vos données utilisateurs (.CSV) :", type=["csv"])
@@ -74,7 +97,11 @@ if df is not None:
             centres = model.cluster_centers_
             ax.scatter(centres[:, 0], centres[:, 1], c='red', s=200, marker='X', label='Centres de gravité')
             
-            legend1 = ax.legend(*scatter.legend_elements(), title="Groupes (Couleurs)", loc="upper left")
+            etiquette_par_cluster, ordre_par_score = construire_etiquettes_clusters(df, col_x, col_y)
+            handles, _ = scatter.legend_elements()
+            valeurs_triees = sorted(df['Cluster_ID'].unique())
+            labels_texte = [etiquette_par_cluster[g] for g in valeurs_triees]
+            legend1 = ax.legend(handles, labels_texte, title="Profil de comportement", loc="upper left")
             ax.add_artist(legend1)
             ax.legend(loc="upper right")
             st.subheader(f"Analyse structurelle K-Means sur '{col_x}' et '{col_y}'")
@@ -88,7 +115,11 @@ if df is not None:
             
             scatter = ax.scatter(df[col_x], df[col_y], c=df['Cluster_ID'], cmap='plasma', alpha=0.6, edgecolors='k')
             
-            legend1 = ax.legend(*scatter.legend_elements(), title="Groupes (-1 = Bruit)", loc="upper left")
+            etiquette_par_cluster, ordre_par_score = construire_etiquettes_clusters(df, col_x, col_y)
+            handles, _ = scatter.legend_elements()
+            valeurs_triees = sorted(df['Cluster_ID'].unique())
+            labels_texte = [etiquette_par_cluster[g] for g in valeurs_triees]
+            legend1 = ax.legend(handles, labels_texte, title="Profil de comportement", loc="upper left")
             ax.add_artist(legend1)
             st.subheader(f"Analyse par densité DBSCAN sur '{col_x}' et '{col_y}'")
             
@@ -103,7 +134,7 @@ if df is not None:
             ax.scatter(ligne_cible[col_x], ligne_cible[col_y], c='red', s=250, edgecolors='white', linewidth=3, label=f"Cible : {cible}")
             ax.legend(loc="upper right")
             
-            st.markdown(f"**Profil ciblé : {cible}** | {col_x} : `{ligne_cible[col_x]}` | {col_y} : `{ligne_cible[col_y]}` | **Segment attribué : {ligne_cible['Cluster_ID']}**")
+            st.markdown(f"**Profil ciblé : {cible}** | {col_x} : `{ligne_cible[col_x]}` | {col_y} : `{ligne_cible[col_y]}` | **Segment attribué : {etiquette_par_cluster[ligne_cible['Cluster_ID']]}**")
 
         # Remplacement dynamique des étiquettes des axes sur le graphique
         ax.set_xlabel(col_x.replace('_', ' '))
@@ -119,15 +150,7 @@ if df is not None:
         
         groupes_uniques = sorted(df['Cluster_ID'].unique())
         cols_streamlit = st.columns(len(groupes_uniques))
-
-        # Score de chaque groupe (hors bruit) pour classer réellement les groupes
-        # du plus faible au plus élevé, au lieu de se fier à l'ID de cluster (arbitraire).
-        scores = {
-            g: df.loc[df['Cluster_ID'] == g, [col_x, col_y]].mean().mean()
-            for g in groupes_uniques if g != -1
-        }
-        ordre_par_score = sorted(scores, key=scores.get)  # du plus faible au plus élevé
-
+        
         for idx, g in enumerate(groupes_uniques):
             with cols_streamlit[idx]:
                 df_g = df[df['Cluster_ID'] == g]
@@ -135,7 +158,7 @@ if df is not None:
                 moyen_x = df_g[col_x].mean()
                 moyen_y = df_g[col_y].mean()
                 
-                nom_groupe = f"Groupe {g}" if g != -1 else "Données atypiques (Bruit)"
+                nom_groupe = etiquette_par_cluster[g] if g != -1 else "Atypique (Bruit)"
                 
                 if g == -1:
                     description = "Enregistrements isolés qui s'écartent du comportement général."
@@ -166,4 +189,4 @@ if df is not None:
         
     else:
         st.error("Le fichier importé ne contient pas assez d'indicateurs numériques (ex : interactions, activité) pour segmenter les utilisateurs.")
-        
+            
