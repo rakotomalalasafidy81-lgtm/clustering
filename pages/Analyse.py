@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler
 st.set_page_config(page_title="Analyse du comportement utilisateur", layout="wide")
 
 st.title(":material/analytics: Outils de regroupement par comportement")
-st.write("Segmentez les utilisateurs de votre plateforme selon leur comportement (interactions, achats, activité...) grâce au Machine Learning.")
+st.write("Segmentez les utilisateurs de votre plateforme selon leur comportement (interactions, activité, engagement...) grâce au Machine Learning.")
 
 # 1. Zone d'importation dynamique
 st.sidebar.header(":material/folder_open: Données utilisateurs")
@@ -23,14 +23,11 @@ if fichier_importe is not None:
     except Exception as e:
         st.sidebar.error("Erreur de lecture du fichier.")
 else:
-    # Fichiers par défaut
+    # Fichier par défaut (ne contient aucune donnée d'achat)
     try:
-        df = pd.read_csv("donnees_utilisateur2.0.csv")
+        df = pd.read_csv("donnees_utilisateurs.csv")
     except:
-        try:
-            df = pd.read_csv("donnees_utilisateurs.csv")
-        except:
-            st.sidebar.warning("En attente d'un fichier CSV...")
+        st.sidebar.warning("En attente d'un fichier CSV...")
 
 if df is not None:
     # Identification automatique des colonnes numériques et texte
@@ -122,7 +119,15 @@ if df is not None:
         
         groupes_uniques = sorted(df['Cluster_ID'].unique())
         cols_streamlit = st.columns(len(groupes_uniques))
-        
+
+        # Score de chaque groupe (hors bruit) pour classer réellement les groupes
+        # du plus faible au plus élevé, au lieu de se fier à l'ID de cluster (arbitraire).
+        scores = {
+            g: df.loc[df['Cluster_ID'] == g, [col_x, col_y]].mean().mean()
+            for g in groupes_uniques if g != -1
+        }
+        ordre_par_score = sorted(scores, key=scores.get)  # du plus faible au plus élevé
+
         for idx, g in enumerate(groupes_uniques):
             with cols_streamlit[idx]:
                 df_g = df[df['Cluster_ID'] == g]
@@ -134,9 +139,9 @@ if df is not None:
                 
                 if g == -1:
                     description = "Enregistrements isolés qui s'écartent du comportement général."
-                elif idx == 0:
+                elif g == ordre_par_score[0]:
                     description = f"Segment avec des valeurs faibles sur les indicateurs '{col_x}' et '{col_y}'."
-                elif idx == len(groupes_uniques) - 1:
+                elif g == ordre_par_score[-1]:
                     description = f"Segment regroupant les valeurs les plus élevées de la base de données."
                 else:
                     description = "Segment au comportement intermédiaire et modéré."
@@ -160,5 +165,5 @@ if df is not None:
         st.dataframe(df)
         
     else:
-        st.error("Le fichier importé ne contient pas assez d'indicateurs numériques (ex : interactions, achats) pour segmenter les utilisateurs.")
+        st.error("Le fichier importé ne contient pas assez d'indicateurs numériques (ex : interactions, activité) pour segmenter les utilisateurs.")
         
