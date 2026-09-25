@@ -80,9 +80,9 @@ with col1:
     if st.button("Informations sur la plateforme", icon=":material/info:", use_container_width=True):
         st.info(
             "**À propos de cette application :**\n\n"
-            "Ce plateforme est un outil d'analyse comportementale et de segmentation de données, "
-            "capable de partitionner et segmenter des données comportementales (Réseaux sociaux, "
-            "sessions Wi-Fi, transactions de supermarchés, etc.).\n\n"
+            "Cette plateforme analyse le comportement grace au données "
+            "Afin de les regrouper en segments ou Cluster  "
+            "cohérents et d'identifier les différents profils .\n\n"
             "**Spécifications techniques :** Python, Streamlit, (K-Means & DBSCAN)."
         )
 
@@ -112,3 +112,4 @@ with col2:
         """,
         unsafe_allow_html=True
     )
+
