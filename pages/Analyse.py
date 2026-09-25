@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.preprocessing import StandardScaler
 
@@ -84,45 +84,59 @@ if df is not None:
         liste_ids = df[col_id].astype(str).tolist() if col_id else [f"Ligne {i}" for i in range(len(df))]
         cible = st.sidebar.selectbox("Mettre en valeur un profil :", ["Aucun"] + liste_ids)
         
-        fig, ax = plt.subplots(figsize=(10, 5))
-        
         # --- EXÉCUTION DU MODÈLE SÉLECTIONNÉ ---
+        fig = go.Figure()
+
         if choix_algo == "K-Means (Algorithme par Centres)":
             nb_clusters = st.sidebar.slider("Nombre de grappes (K) :", min_value=2, max_value=6, value=3)
             model = KMeans(n_clusters=nb_clusters, random_state=42)
             df['Cluster_ID'] = model.fit_predict(X)
-            
-            # Affichage graphique
-            scatter = ax.scatter(df[col_x], df[col_y], c=df['Cluster_ID'], cmap='viridis', alpha=0.6, edgecolors='k')
-            centres = model.cluster_centers_
-            ax.scatter(centres[:, 0], centres[:, 1], c='red', s=200, marker='X', label='Centres de gravité')
-            
+
             etiquette_par_cluster, ordre_par_score = construire_etiquettes_clusters(df, col_x, col_y)
-            handles, _ = scatter.legend_elements()
-            valeurs_triees = sorted(df['Cluster_ID'].unique())
-            labels_texte = [etiquette_par_cluster[g] for g in valeurs_triees]
-            legend1 = ax.legend(handles, labels_texte, title="Profil de comportement", loc="upper left")
-            ax.add_artist(legend1)
-            ax.legend(loc="upper right")
+
+            # Un point par utilisateur, coloré et étiqueté par profil de comportement
+            for g in sorted(df['Cluster_ID'].unique()):
+                sous_df = df[df['Cluster_ID'] == g]
+                identifiants = sous_df[col_id].astype(str) if col_id else sous_df.index.astype(str)
+                fig.add_trace(go.Scatter(
+                    x=sous_df[col_x], y=sous_df[col_y], mode='markers',
+                    name=etiquette_par_cluster[g],
+                    marker=dict(size=9, line=dict(width=1, color='DarkSlateGrey')),
+                    text=identifiants,
+                    customdata=[etiquette_par_cluster[g]] * len(sous_df),
+                    hovertemplate="<b>%{text}</b><br>" + f"{col_x}" + ": %{x}<br>" + f"{col_y}" + ": %{y}<br>Profil : %{customdata}<extra></extra>"
+                ))
+
+            centres = model.cluster_centers_
+            fig.add_trace(go.Scatter(
+                x=centres[:, 0], y=centres[:, 1], mode='markers', name='Centres de gravité',
+                marker=dict(symbol='x', size=14, color='red', line=dict(width=2)),
+                hoverinfo='skip'
+            ))
             st.subheader(f"Analyse structurelle K-Means sur '{col_x}' et '{col_y}'")
-            
+
         else:
             # Traitement DBSCAN avec normalisation
             scaler = StandardScaler()
             X_scaled = scaler.fit_transform(X)
             model = DBSCAN(eps=0.35, min_samples=5)
             df['Cluster_ID'] = model.fit_predict(X_scaled)
-            
-            scatter = ax.scatter(df[col_x], df[col_y], c=df['Cluster_ID'], cmap='plasma', alpha=0.6, edgecolors='k')
-            
+
             etiquette_par_cluster, ordre_par_score = construire_etiquettes_clusters(df, col_x, col_y)
-            handles, _ = scatter.legend_elements()
-            valeurs_triees = sorted(df['Cluster_ID'].unique())
-            labels_texte = [etiquette_par_cluster[g] for g in valeurs_triees]
-            legend1 = ax.legend(handles, labels_texte, title="Profil de comportement", loc="upper left")
-            ax.add_artist(legend1)
+
+            for g in sorted(df['Cluster_ID'].unique()):
+                sous_df = df[df['Cluster_ID'] == g]
+                identifiants = sous_df[col_id].astype(str) if col_id else sous_df.index.astype(str)
+                fig.add_trace(go.Scatter(
+                    x=sous_df[col_x], y=sous_df[col_y], mode='markers',
+                    name=etiquette_par_cluster[g],
+                    marker=dict(size=9, line=dict(width=1, color='DarkSlateGrey')),
+                    text=identifiants,
+                    customdata=[etiquette_par_cluster[g]] * len(sous_df),
+                    hovertemplate="<b>%{text}</b><br>" + f"{col_x}" + ": %{x}<br>" + f"{col_y}" + ": %{y}<br>Profil : %{customdata}<extra></extra>"
+                ))
             st.subheader(f"Analyse par densité DBSCAN sur '{col_x}' et '{col_y}'")
-            
+
         # --- MISE EN AVANT D'UNE CIBLE SPÉCIFIQUE ---
         if cible != "Aucun":
             if col_id:
@@ -131,16 +145,33 @@ if df is not None:
                 idx_cible = int(cible.split(" "))
                 
             ligne_cible = df.loc[idx_cible].iloc[0] if hasattr(df.loc[idx_cible], 'iloc') else df.loc[idx_cible]
-            ax.scatter(ligne_cible[col_x], ligne_cible[col_y], c='red', s=250, edgecolors='white', linewidth=3, label=f"Cible : {cible}")
-            ax.legend(loc="upper right")
+            fig.add_trace(go.Scatter(
+                x=[ligne_cible[col_x]], y=[ligne_cible[col_y]], mode='markers',
+                name=f"Cible : {cible}",
+                marker=dict(size=16, color='red', line=dict(width=3, color='white')),
+                text=[str(cible)],
+                customdata=[etiquette_par_cluster[ligne_cible['Cluster_ID']]],
+                hovertemplate="<b>%{text}</b><br>" + f"{col_x}" + ": %{x}<br>" + f"{col_y}" + ": %{y}<br>Profil : %{customdata}<extra></extra>"
+            ))
             
             st.markdown(f"**Profil ciblé : {cible}** | {col_x} : `{ligne_cible[col_x]}` | {col_y} : `{ligne_cible[col_y]}` | **Segment attribué : {etiquette_par_cluster[ligne_cible['Cluster_ID']]}**")
 
-        # Remplacement dynamique des étiquettes des axes sur le graphique
-        ax.set_xlabel(col_x.replace('_', ' '))
-        ax.set_ylabel(col_y.replace('_', ' '))
-        ax.grid(True, linestyle='--', alpha=0.3)
-        st.pyplot(fig)
+        # Remplacement dynamique des étiquettes des axes, graphique zoomable/déplaçable
+        fig.update_layout(
+            xaxis_title=col_x.replace('_', ' '),
+            yaxis_title=col_y.replace('_', ' '),
+            hovermode='closest',
+            dragmode='zoom',
+            height=480,
+            margin=dict(l=10, r=10, t=10, b=10),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom", y=-0.35,
+                xanchor="center", x=0.5,
+                title=None,
+            ),
+        )
+        st.plotly_chart(fig, use_container_width=True)
         
         # ==========================================
         # 📋 STATISTIQUES RÉELLES ET GÉNÉRIQUES
@@ -189,4 +220,4 @@ if df is not None:
         
     else:
         st.error("Le fichier importé ne contient pas assez d'indicateurs numériques (ex : interactions, activité) pour segmenter les utilisateurs.")
-            
+        
