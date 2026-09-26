@@ -201,7 +201,7 @@ if df is not None:
                     description = "Segment au comportement intermédiaire et modéré."
                 
                 st.markdown(f"### :material/groups: {nom_groupe}")
-                st.markdown(f"**Effectif :** `{nb_lignes} lignes`")
+                st.markdown(f"**Effectif :** `{nb_lignes} personnes`")
                 st.write(description)
                 st.caption(f":material/trending_up: Moyennes : {moyen_x:.1f} | {moyen_y:.1f}")
         st.write("---")
@@ -220,4 +220,4 @@ if df is not None:
         
     else:
         st.error("Le fichier importé ne contient pas assez d'indicateurs numériques (ex : interactions, activité) pour segmenter les utilisateurs.")
-        
+                
