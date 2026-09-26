@@ -220,4 +220,4 @@ if df is not None:
         
     else:
         st.error("Le fichier importé ne contient pas assez d'indicateurs numériques (ex : interactions, activité) pour segmenter les utilisateurs.")
-                
+        
